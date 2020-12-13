@@ -47,10 +47,10 @@ class PackageUploadForm(forms.ModelForm):
         model = PackageVersion
         fields = ["file"]
 
-    def __init__(self, user, identity, community, *args, **kwargs):
+    def __init__(self, user, community, *args, **kwargs):
         super(PackageUploadForm, self).__init__(*args, **kwargs)
         self.user: User = user
-        self.identity: UploaderIdentity = identity
+        self.identity: Optional[UploaderIdentity] = None
         self.community: Community = community
         self.fields["categories"].queryset = PackageCategory.objects.filter(community=community)
         self.manifest: Optional[dict] = None
@@ -58,7 +58,7 @@ class PackageUploadForm(forms.ModelForm):
         self.readme: Optional[str] = None
         self.file_size: Optional[int] = None
 
-    def validate_manifest(self, manifest_str):
+    def validate_manifest(self, manifest_str) -> None:
         try:
             manifest_data = json.loads(manifest_str)
         except json.decoder.JSONDecodeError as exc:
@@ -66,11 +66,11 @@ class PackageUploadForm(forms.ModelForm):
 
         serializer = ManifestV1Serializer(
             user=self.user,
-            uploader=self.identity,
             data=manifest_data,
         )
         if serializer.is_valid():
             self.manifest = serializer.validated_data
+            self.identity = serializer.uploader
         else:
             errors = unpack_serializer_errors("manifest.json", serializer.errors)
             errors = ValidationError([
@@ -153,6 +153,7 @@ class PackageUploadForm(forms.ModelForm):
         self.instance.description = self.manifest["description"]
         self.instance.readme = self.readme
         self.instance.file_size = self.file_size
+
         self.instance.package = Package.objects.get_or_create(
             owner=self.identity,
             name=self.instance.name,

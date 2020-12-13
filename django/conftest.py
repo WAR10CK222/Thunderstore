@@ -47,6 +47,7 @@ def package_version(package):
 def manifest_v1_data():
     return {
         "name": "name",
+        "author_name": "author_name",
         "version_number": "1.0.0",
         "website_url": "",
         "description": "",
